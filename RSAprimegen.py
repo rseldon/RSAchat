@@ -1,128 +1,11 @@
-# RSAhelp.py
-# This is a file for helper functions involved in RSA
+# RSAprimegen.py
+# This is a file for functions involved generating random primes
 # including:
-# - fast modular exponentiation
-# - fast modular multiplicative inverse
-# - miller-rabin primality testing
-# - wrapper funct for generating cryptographic numbers of arbitrary size
-# - generating random primes of arbitrary size
 
 from os import urandom
 import math
 import RSAprecompute
-
-
-def mod_exp(base, expo, mod):
-    """Fast exponentiation in O(log(expo)) time by
-       repeatedly squaring base and taking the result modulo 'mod' """
-
-    result = 1 # result holds the "odd-man out" factors
-    while(expo>0):
-        if(expo % 2 == 1):
-            result = (result * base) % mod
-        expo = int(expo) >> 1 # integer division by 2
-        base = (base * base) % mod # base holds base^(2i)
-    return result
-
-def mod_mult_inv(a, mod):
-    """find the mult inverse of e mod phi_n using euclidean alg"""
-    # used pseduocode on extended euclidean algorithm from wikipedia
-    # https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Computing_multiplicative_inverses_in_modular_structures
-    t = 0
-    new_t=1
-    r = mod
-    new_r = a
-
-    while(new_r != 0):
-        quotient = int(r/new_r)
-        (t, new_t) = (new_t, t - quotient*new_t)
-        (r, new_r) = (new_r, r - quotient*new_r)
-    if (r>1): print("e and phi_n are not coprime")
-    if (t<0): t = t+mod
-    return t
-
-BYTE_BITS = 8
-
-
-def crypto_rand(*args):
-    num_args = len(args)
-    low = 0
-    if num_args == 1:
-        high = args[0]
-    else:
-        low = args[0]
-        high = args[1]
-        assert(low<high)
-
-    result = -1
-    while(result<low or result>=high):
-        bits = math.ceil(math.log(high,2))
-        num_bytes = math.ceil(bits/BYTE_BITS)
-        result = int.from_bytes(urandom(num_bytes),'big')
-        result = result>>(BYTE_BITS-bits%BYTE_BITS)
-    return result
-
-        
-
-
-##########################################################
-#### MILLER-RABIN PRIMALITY TEST #########################
-##########################################################
-
-BYTE_SIZE = 256 # number of values that can be held by a byte
-
-
-def miller_rabin(n, k=15):
-    """miller_rabin probabalistically tests input n for primality.
-    Parameter k gives the confidence.
-    False positives are reported with likelihood 4^(-k)."""
-
-    if(n==3 or n==2):
-        return True
-    elif(n<2 or n%2==0):
-        return False
-    
-    # represent n-1 as 2^r * d for maximal r
-    nmin1 = n-1
-    d = nmin1
-    r = 0
-    while(d % 2 == 0):
-        r = r+1
-        d = int(d/2)
-
-    # Decide necessary number of witnesses, k
-    # False positives occur with probability k^(-4)
-    # k = 15 gives better than 1 in 1 billion odds
-
-    # run k tests:
-    for  i in range(k):
-        a=0
-        # select witness a randomly in range [2,n-2]
-        a = 0
-        while(a<2):
-            a = crypto_rand(2,n-1)
-
-        if(not witness_test(a, n, d, r)):
-            return False
-    
-    return True
-
-
-def witness_test(a, n, d, r):
-    """performs single-witness miller-rabin test
-       false - composite. true - probably prime."""
-    nmin1 = n-1
-    x = mod_exp(a, d, n)
-    if(x==1 or x==nmin1):
-        return True
-    for j in range(r-1):
-        x = mod_exp(x, 2, n)
-        if(x == 1):
-            return False
-        elif(x == nmin1):
-            return True
-    return False
-
+import RSAhelp
 
 
 #######################################################
@@ -143,10 +26,59 @@ def retry_until_prime(low, high):
     return p
 
 
-def wheel_find_prime(low,high):
+def wheel_find_prime(low,high,wheel_degree=0):
     """ Finds prime between low and high using prime wheel.
-    Randomly selects values a,b so potential prime = a*wheel_size + b
+    Randomly selects values "multiple" and "offset" such that
+    "candidate" = multiple * wheel_size + offset
     """
+    assert(low<high)
+    # for small primes, just pick randomly from predetermined primes.
+    if(high < max(RSAprecompute.small_primes)):
+        rand_ind = RSAhelp.crypto_rand(len(RSAprecompute.small_primes))
+        return RSAprecompute.small_primes[rand_ind]
+
+    candidate = 0
+    if(wheel_degree):
+        wheel_size = 1
+        for i in range(wheel_degree+1):
+            wheel_size = wheel_size*RSAprecompute.small_primes[i]
+        wheel = prime_wheel(7)
+
+        while(candidate<low or candidate>=high or
+              not RSAhelp.miller_rabin(candidate)):
+
+            multiple = RSAhelp.crypto_rand(math.floor(low/wheel_size),
+                                   math.ceil(high/wheel_size))
+
+            index_within_wheel = RSAhelp.crypto_rand(len(wheel))
+            offset = wheel[index_within_wheel]
+            candidate = multiple * wheel_size + offset
+
+        
+    
+    else:
+        wheel_degree = len(RSAprecompute.prime_wheels)-1
+        wheel_size = RSAprecompute.primorials[wheel_degree]
+        while(wheel_size > high-low):
+            wheel_degree = wheel_degree - 1
+            wheel_size = RSAprecompute.primorials[wheel_degree]
+
+
+        while(candidate<low or candidate>=high or
+              not RSAhelp.miller_rabin(candidate)):
+
+            multiple = RSAhelp.crypto_rand(math.floor(low/wheel_size),
+                                   math.ceil(high/wheel_size))
+
+            index_within_wheel = RSAhelp.crypto_rand(
+                len(RSAprecompute.prime_wheels[wheel_degree]))
+            offset = RSAprecompute.prime_wheels[wheel_degree][index_within_wheel]
+
+            candidate = multiple * wheel_size + offset
+        
+        
+    return candidate
+
     
 
 ##def prime_wheel(max_wheel_size):
@@ -213,6 +145,16 @@ def wheel(largest_prime, table_size):
 
     return wheel
 
+def primorial(nth):
+    """ calculates the nth primorial, or the product of the first n primes"""
+    if(nth<len(RSAprecompute.small_primes)):
+        result = 1
+        for i in range(nth):
+            result = result*RSAprecompute.small_primes[i]
+        return result
+    else:
+        return -1 ####################################
+            
 
 
 def erat(largest_prime, table_size):
