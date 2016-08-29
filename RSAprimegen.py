@@ -81,30 +81,6 @@ def wheel_find_prime(low,high,wheel_degree=0):
 
     
 
-##def prime_wheel(max_wheel_size):
-##    """ prime wheel has size equal to the largest
-##    primorial (product of first n primes) less than max_wheel_size
-##    and includes all moduli mod wheel_size that primes could take"""
-##
-##    # primorial (product of first k primes) has hard upper bound of 4^k
-##    # primorials are precomputed in RSAprecompute.py
-##    
-##    # Find largest primorial less than max_wheel_size
-##    prime_index = 0
-##    wheel_size = RSAprecompute.primorials[prime_index]
-##    next_wheel_size = RSAprecompute.primorials[prime_index+1]
-##
-##    while(next_wheel_size < max_wheel_size):
-##        prime_index = prime_index+1
-##        assert(prime_index < len(RSAprecompute.small_primes))
-##        wheel_size = RSAprecompute.primorials[prime_index]
-##        next_wheel_size = RSAprecompute.primorials[prime_index+1]
-##
-##    largest_prime = RSAprecompute.small_primes[prime_index]
-##
-##    return wheel(largest_prime, wheel_size)
-##
-
 def prime_wheel(prime_index):
     """ prime wheel has size equal to the largest
     primorial (product of first n primes) less than max_wheel_size
