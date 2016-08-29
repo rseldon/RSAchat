@@ -1,3 +1,6 @@
 RSAhelpers.py
 miller_rabin.py
 RSAhelp.pyc
+writehere.py
+*.pyc
+RSAprecompute_backup.py
