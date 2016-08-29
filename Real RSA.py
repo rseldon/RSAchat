@@ -1,8 +1,7 @@
 from RSAhelp import *
 from RSAprimegen import *
 
-constP = 1021
-constQ = 1009
+
 constE = 65537
 WHEELDEGREE = 0
 
@@ -32,11 +31,10 @@ def generate_pq(bits=128):
 
     return p,q
 
-def generate_e(phi_n):
+def generate_e(phi_n, e = constE):
     """Selects a value for *e*, the public key explonent.
 Must be coprime with phi_n.
 """
-    e = constE
     if(phi_n % e == 0): print("e not coprime to phi_n")
     return constE
 
